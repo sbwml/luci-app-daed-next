@@ -16,7 +16,6 @@
 
 ```bash
 git clone https://github.com/sbwml/luci-app-daed-next package/daed-next
-rm -rf package/daed-next/node-empty
 ```
 
 ### 2. Install clang-13, refer to https://apt.llvm.org
