@@ -5,26 +5,26 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed-next
-PKG_VERSION:=2023-10-25-952b1c9
-PKG_RELEASE:=1
+PKG_VERSION:=2024-01-12
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/daeuniverse/daed-revived-next.git
-PKG_SOURCE_VERSION:=952b1c9878739349bde5149468a230f66e633256
-PKG_MIRROR_HASH:=ad4af26cc11269133a6330a374c780a0aaa8d89968de19782a4f899bb9a66d55
+PKG_SOURCE_VERSION:=a5647d2947b415418f6c0ef8f137b3865700f82f
+PKG_MIRROR_HASH:=7594f785e6e41139fe0d93bafc5371d12116adefb3307629d61273254ff21d09
 
 PKG_BUILD_DIR=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing
-PKG_BUILD_DEPENDS:=golang/host bpf-headers
+PKG_BUILD_DEPENDS:=golang/host bpf-headers node/host node-yarn/host
 PKG_BUILD_PARALLEL:=1
 PKG_USE_MIPS16:=0
 PKG_BUILD_FLAGS:=no-mips16
 
 GO_PKG:=github.com/daeuniverse/dae-wing
 GO_PKG_LDFLAGS:= \
-	-X '$(GO_PKG)/db.AppDescription=$(PKG_NAME) is a integration solution of dae, API and UI.'
+	-X '$(GO_PKG)/db.AppDescription=dae-wing is a integration solution of dae, API and UI.'
 GO_PKG_LDFLAGS_X:= \
-	$(GO_PKG)/db.AppName=$(PKG_NAME) \
+	$(GO_PKG)/db.AppName=dae-wing \
 	$(GO_PKG)/db.AppVersion=$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
@@ -57,13 +57,6 @@ define Package/daed-next/conffiles
 /etc/config/daed-next
 endef
 
-define Download/daed-next
-  URL:=https://github.com/sbwml/luci-app-daed-next/releases/download/daed-web-$(PKG_VERSION)/
-  URL_FILE:=daed-web-$(PKG_VERSION).squashfs
-  FILE:=daed-web-$(PKG_VERSION).squashfs
-  HASH:=9d7fd44c995f8d461e26915f2521534bcdd62b5d16cadcdd0d4b90e7de2aaf34
-endef
-
 define Build/Prepare
 	$(TAR) --strip-components=1 -C $(PKG_BUILD_DIR)/../ -xzf $(DL_DIR)/$(PKG_NAME)-$(PKG_VERSION).tar.gz
 endef
@@ -81,6 +74,14 @@ endif
 define Build/Compile
 	( \
 		pushd $(PKG_BUILD_DIR) ; \
+		pushd .. ; \
+		yarn install ; \
+		STANDALONE=1 yarn build ; \
+		$(CP) .next/standalone out ; \
+		$(CP) .next/static out/.next/ ; \
+		$(CP) public out ; \
+		$(STAGING_DIR_HOST)/bin/mksquashfs4 out daed-web.squashfs -comp xz ; \
+		popd ; \
 		$(MAKE) deps ; \
 		$(GO_GENERAL_BUILD_CONFIG_VARS) \
 		$(GO_PKG_BUILD_CONFIG_VARS) \
@@ -106,7 +107,7 @@ define Package/daed-next/install
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/dae-wing $(1)/usr/bin/dae-wing
 
 	$(INSTALL_DIR) $(1)/usr/share/daed-next
-	$(INSTALL_DATA) $(DL_DIR)/daed-web-$(PKG_VERSION).squashfs $(1)/usr/share/daed-next/daed-web.squashfs
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/../daed-web.squashfs $(1)/usr/share/daed-next/daed-web.squashfs
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) $(CURDIR)/files/daed-next.config $(1)/etc/config/daed-next
@@ -115,6 +116,5 @@ define Package/daed-next/install
 	$(INSTALL_BIN) $(CURDIR)/files/daed-next.init $(1)/etc/init.d/daed-next
 endef
 
-$(eval $(call Download,daed-next))
 $(eval $(call GoBinPackage,daed-next))
 $(eval $(call BuildPackage,daed-next))
